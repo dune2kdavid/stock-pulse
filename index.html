@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Top 10 Stocks to Invest</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { background: #0f172a; }
+    .glass {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .positive { color: #22c55e; }
+    .negative { color: #ef4444; }
+    .stock-row:hover { background: rgba(255,255,255,0.07); transform: translateX(4px); }
+    .stock-row { transition: all 0.2s ease; }
+    .sector-badge {
+      font-size: 0.65rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+    .bar-fill { transition: width 1s ease; }
+    .tab-btn.active { background: #6366f1; color: white; }
+    .tab-btn { transition: all 0.2s; }
+    .sparkline-up { color: #22c55e; }
+    .sparkline-down { color: #ef4444; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeIn 0.5s ease forwards; }
+    .card-delay-1 { animation-delay: 0.05s; opacity: 0; }
+    .card-delay-2 { animation-delay: 0.10s; opacity: 0; }
+    .card-delay-3 { animation-delay: 0.15s; opacity: 0; }
+  </style>
+</head>
+<body class="min-h-screen text-white font-sans">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-50 glass border-b border-white/10 px-6 py-4">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-indigo-500 flex items-center justify-center text-lg">📈</div>
+        <div>
+          <h1 class="text-lg font-bold leading-none">StockPulse</h1>
+          <p class="text-xs text-slate-400">Top 10 Stocks to Watch</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <span id="last-updated" class="text-xs text-slate-500"></span>
+        <div class="flex gap-1 glass rounded-lg p-1">
+          <button class="tab-btn active px-3 py-1.5 rounded-md text-sm font-medium" onclick="setView('table')">List</button>
+          <button class="tab-btn px-3 py-1.5 rounded-md text-sm font-medium text-slate-400" onclick="setView('cards')">Cards</button>
+          <button class="tab-btn px-3 py-1.5 rounded-md text-sm font-medium text-slate-400" onclick="setView('chart')">Chart</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Stats -->
+  <div class="max-w-7xl mx-auto px-6 py-6">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div class="glass rounded-2xl p-4 fade-in card-delay-1">
+        <p class="text-xs text-slate-400 mb-1">Market Gainers</p>
+        <p class="text-2xl font-bold positive" id="stat-gainers">—</p>
+        <p class="text-xs text-slate-500">Positive today</p>
+      </div>
+      <div class="glass rounded-2xl p-4 fade-in card-delay-1">
+        <p class="text-xs text-slate-400 mb-1">Avg. Daily Change</p>
+        <p class="text-2xl font-bold" id="stat-avg-change">—</p>
+        <p class="text-xs text-slate-500">Across top 10</p>
+      </div>
+      <div class="glass rounded-2xl p-4 fade-in card-delay-2">
+        <p class="text-xs text-slate-400 mb-1">Top Performer</p>
+        <p class="text-2xl font-bold text-indigo-400" id="stat-top">—</p>
+        <p class="text-xs text-slate-500">Best daily gain</p>
+      </div>
+      <div class="glass rounded-2xl p-4 fade-in card-delay-3">
+        <p class="text-xs text-slate-400 mb-1">Total Market Cap</p>
+        <p class="text-2xl font-bold text-amber-400" id="stat-mcap">—</p>
+        <p class="text-xs text-slate-500">Combined (USD)</p>
+      </div>
+    </div>
+
+    <!-- Sort Controls -->
+    <div class="flex flex-wrap items-center gap-2 mb-4" id="sort-controls">
+      <span class="text-xs text-slate-500 mr-1">Sort by:</span>
+      <button class="sort-btn active-sort text-xs px-3 py-1 rounded-full glass hover:bg-indigo-500/20" onclick="sortStocks('rank')">Rank</button>
+      <button class="sort-btn text-xs px-3 py-1 rounded-full glass hover:bg-indigo-500/20" onclick="sortStocks('change')">Daily Change</button>
+      <button class="sort-btn text-xs px-3 py-1 rounded-full glass hover:bg-indigo-500/20" onclick="sortStocks('price')">Price</button>
+      <button class="sort-btn text-xs px-3 py-1 rounded-full glass hover:bg-indigo-500/20" onclick="sortStocks('marketCap')">Market Cap</button>
+      <button class="sort-btn text-xs px-3 py-1 rounded-full glass hover:bg-indigo-500/20" onclick="sortStocks('pe')">P/E Ratio</button>
+    </div>
+
+    <!-- Views -->
+    <div id="view-table">
+      <div class="glass rounded-2xl overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-white/10 text-xs text-slate-400 uppercase tracking-wider">
+                <th class="text-left px-5 py-3.5">#</th>
+                <th class="text-left px-4 py-3.5">Company</th>
+                <th class="text-left px-4 py-3.5">Sector</th>
+                <th class="text-right px-4 py-3.5">Price</th>
+                <th class="text-right px-4 py-3.5">Change</th>
+                <th class="text-right px-4 py-3.5">Market Cap</th>
+                <th class="text-right px-4 py-3.5">P/E</th>
+                <th class="text-right px-4 py-3.5">52W Return</th>
+                <th class="px-4 py-3.5">Strength</th>
+              </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="view-cards" class="hidden">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="cards-body"></div>
+    </div>
+
+    <div id="view-chart" class="hidden">
+      <div class="grid md:grid-cols-2 gap-6">
+        <div class="glass rounded-2xl p-6">
+          <h3 class="text-sm font-semibold mb-4 text-slate-300">Market Cap Comparison</h3>
+          <canvas id="mcapChart" height="260"></canvas>
+        </div>
+        <div class="glass rounded-2xl p-6">
+          <h3 class="text-sm font-semibold mb-4 text-slate-300">Daily Change %</h3>
+          <canvas id="changeChart" height="260"></canvas>
+        </div>
+        <div class="glass rounded-2xl p-6">
+          <h3 class="text-sm font-semibold mb-4 text-slate-300">52-Week Return %</h3>
+          <canvas id="returnChart" height="260"></canvas>
+        </div>
+        <div class="glass rounded-2xl p-6">
+          <h3 class="text-sm font-semibold mb-4 text-slate-300">P/E Ratio</h3>
+          <canvas id="peChart" height="260"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Disclaimer -->
+    <div class="mt-8 glass rounded-xl px-5 py-4 text-xs text-slate-500 leading-relaxed">
+      ⚠️ <strong class="text-slate-400">Disclaimer:</strong> This webapp is for <strong>educational and informational purposes only</strong>. Stock data is illustrative and not real-time. This is <strong>not financial or investment advice</strong>. Always conduct your own research and consult a licensed financial advisor before investing.
+    </div>
+  </div>
+
+<script>
+const stocks = [
+  {
+    rank: 1, symbol: "NVDA", name: "NVIDIA Corporation", sector: "Semiconductors",
+    sectorColor: "bg-purple-500/20 text-purple-300",
+    price: 875.40, change: 3.12, marketCap: 2150, pe: 67.2,
+    yearReturn: 148.5, analystRating: "Strong Buy", logo: "🟢",
+    desc: "Dominates AI GPU market. Key supplier for data centers powering LLM training.",
+    strengths: 96
+  },
+  {
+    rank: 2, symbol: "MSFT", name: "Microsoft Corporation", sector: "Software",
+    sectorColor: "bg-blue-500/20 text-blue-300",
+    price: 415.20, change: 0.85, marketCap: 3090, pe: 34.5,
+    yearReturn: 21.3, analystRating: "Strong Buy", logo: "🔵",
+    desc: "Cloud leader with Azure & AI integration via OpenAI partnership.",
+    strengths: 92
+  },
+  {
+    rank: 3, symbol: "AAPL", name: "Apple Inc.", sector: "Consumer Tech",
+    sectorColor: "bg-slate-500/20 text-slate-300",
+    price: 229.87, change: -0.43, marketCap: 3520, pe: 30.1,
+    yearReturn: 18.7, analystRating: "Buy", logo: "⚪",
+    desc: "Ecosystem moat, iPhone loyalty, expanding services revenue.",
+    strengths: 90
+  },
+  {
+    rank: 4, symbol: "AMZN", name: "Amazon.com Inc.", sector: "E-Commerce / Cloud",
+    sectorColor: "bg-orange-500/20 text-orange-300",
+    price: 198.30, change: 1.54, marketCap: 2080, pe: 41.8,
+    yearReturn: 34.2, analystRating: "Strong Buy", logo: "🟠",
+    desc: "AWS dominates cloud. Advertising & Prime continue scaling.",
+    strengths: 91
+  },
+  {
+    rank: 5, symbol: "GOOGL", name: "Alphabet Inc.", sector: "Internet / AI",
+    sectorColor: "bg-green-500/20 text-green-300",
+    price: 193.15, change: 2.07, marketCap: 2390, pe: 24.6,
+    yearReturn: 29.8, analystRating: "Buy", logo: "🟡",
+    desc: "Search monopoly + Gemini AI, YouTube & cloud growth.",
+    strengths: 88
+  },
+  {
+    rank: 6, symbol: "META", name: "Meta Platforms Inc.", sector: "Social Media",
+    sectorColor: "bg-indigo-500/20 text-indigo-300",
+    price: 598.70, change: 1.29, marketCap: 1520, pe: 27.3,
+    yearReturn: 62.1, analystRating: "Buy", logo: "🔷",
+    desc: "Ad revenue rebound, Llama AI push, AR/VR long-term bet.",
+    strengths: 87
+  },
+  {
+    rank: 7, symbol: "BRK.B", name: "Berkshire Hathaway", sector: "Conglomerate",
+    sectorColor: "bg-amber-500/20 text-amber-300",
+    price: 460.10, change: 0.21, marketCap: 985, pe: 22.1,
+    yearReturn: 16.4, analystRating: "Buy", logo: "🟤",
+    desc: "Buffett's fortress. Diversified, strong cash reserves.",
+    strengths: 82
+  },
+  {
+    rank: 8, symbol: "JPM", name: "JPMorgan Chase & Co.", sector: "Finance",
+    sectorColor: "bg-cyan-500/20 text-cyan-300",
+    price: 247.60, change: -0.18, marketCap: 710, pe: 12.4,
+    yearReturn: 39.5, analystRating: "Buy", logo: "🔵",
+    desc: "Largest US bank. Strong earnings, dividend growth.",
+    strengths: 83
+  },
+  {
+    rank: 9, symbol: "V", name: "Visa Inc.", sector: "Payments",
+    sectorColor: "bg-blue-600/20 text-blue-200",
+    price: 316.45, change: 0.64, marketCap: 655, pe: 32.7,
+    yearReturn: 24.1, analystRating: "Strong Buy", logo: "🔵",
+    desc: "Global payment rail, high margins, recession-resilient.",
+    strengths: 85
+  },
+  {
+    rank: 10, symbol: "LLY", name: "Eli Lilly & Company", sector: "Healthcare",
+    sectorColor: "bg-pink-500/20 text-pink-300",
+    price: 892.30, change: 1.88, marketCap: 848, pe: 58.3,
+    yearReturn: 53.7, analystRating: "Strong Buy", logo: "🩷",
+    desc: "GLP-1 weight-loss drugs (Mounjaro/Zepbound) driving massive growth.",
+    strengths: 89
+  }
+];
+
+let currentSort = 'rank';
+let sortDir = 1;
+
+function fmt(n, dec=2) { return n.toFixed(dec); }
+function fmtMcap(n) {
+  if (n >= 1000) return `$${(n/1000).toFixed(2)}T`;
+  return `$${n}B`;
+}
+
+function computeStats() {
+  const gainers = stocks.filter(s => s.change > 0).length;
+  const avgChange = stocks.reduce((a,s) => a + s.change, 0) / stocks.length;
+  const top = stocks.reduce((a,s) => s.change > a.change ? s : a, stocks[0]);
+  const totalMcap = stocks.reduce((a,s) => a + s.marketCap, 0);
+
+  document.getElementById('stat-gainers').textContent = gainers + ' / 10';
+  const el = document.getElementById('stat-avg-change');
+  el.textContent = (avgChange >= 0 ? '+' : '') + fmt(avgChange) + '%';
+  el.className = 'text-2xl font-bold ' + (avgChange >= 0 ? 'positive' : 'negative');
+  document.getElementById('stat-top').textContent = top.symbol + ' +' + fmt(top.change) + '%';
+  document.getElementById('stat-mcap').textContent = fmtMcap(totalMcap);
+  document.getElementById('last-updated').textContent = 'Data: Illustrative (Feb 2026)';
+}
+
+function ratingColor(r) {
+  if (r === 'Strong Buy') return 'text-emerald-400';
+  if (r === 'Buy') return 'text-green-400';
+  return 'text-yellow-400';
+}
+
+function renderTable(data) {
+  const body = document.getElementById('table-body');
+  body.innerHTML = data.map((s, i) => `
+    <tr class="stock-row border-b border-white/5 cursor-default">
+      <td class="px-5 py-3.5 text-slate-400 font-mono text-xs">${s.rank}</td>
+      <td class="px-4 py-3.5">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-sm">${s.logo}</div>
+          <div>
+            <div class="font-bold text-white">${s.symbol}</div>
+            <div class="text-xs text-slate-400">${s.name}</div>
+          </div>
+        </div>
+      </td>
+      <td class="px-4 py-3.5"><span class="sector-badge ${s.sectorColor}">${s.sector}</span></td>
+      <td class="px-4 py-3.5 text-right font-mono font-semibold">$${fmt(s.price)}</td>
+      <td class="px-4 py-3.5 text-right font-mono ${s.change >= 0 ? 'positive' : 'negative'} font-semibold">
+        ${s.change >= 0 ? '▲' : '▼'} ${Math.abs(s.change)}%
+      </td>
+      <td class="px-4 py-3.5 text-right text-slate-300">${fmtMcap(s.marketCap)}</td>
+      <td class="px-4 py-3.5 text-right text-slate-300">${s.pe}x</td>
+      <td class="px-4 py-3.5 text-right ${s.yearReturn >= 0 ? 'positive' : 'negative'} font-semibold">
+        ${s.yearReturn >= 0 ? '+' : ''}${s.yearReturn}%
+      </td>
+      <td class="px-4 py-3.5 min-w-[100px]">
+        <div class="flex items-center gap-2">
+          <div class="flex-1 bg-white/10 rounded-full h-1.5">
+            <div class="bar-fill bg-indigo-500 h-1.5 rounded-full" style="width:${s.strengths}%"></div>
+          </div>
+          <span class="text-xs text-slate-400">${s.strengths}</span>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function renderCards(data) {
+  const body = document.getElementById('cards-body');
+  body.innerHTML = data.map(s => `
+    <div class="glass rounded-2xl p-5 hover:border-indigo-500/40 transition-all duration-200 hover:-translate-y-1 fade-in">
+      <div class="flex items-start justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <div class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-xl">${s.logo}</div>
+          <div>
+            <div class="font-bold">${s.symbol}</div>
+            <div class="text-xs text-slate-400">${s.name.length > 20 ? s.name.slice(0,20)+'…' : s.name}</div>
+          </div>
+        </div>
+        <span class="text-xs font-bold px-2 py-1 rounded-lg bg-white/5 text-slate-300">#${s.rank}</span>
+      </div>
+      <span class="sector-badge ${s.sectorColor} mb-3 inline-block">${s.sector}</span>
+      <p class="text-xs text-slate-400 mb-4 leading-relaxed">${s.desc}</p>
+      <div class="grid grid-cols-2 gap-2 text-xs mb-3">
+        <div class="bg-white/5 rounded-lg p-2">
+          <div class="text-slate-500 mb-0.5">Price</div>
+          <div class="font-mono font-semibold">$${fmt(s.price)}</div>
+        </div>
+        <div class="bg-white/5 rounded-lg p-2">
+          <div class="text-slate-500 mb-0.5">Today</div>
+          <div class="font-mono font-semibold ${s.change >= 0 ? 'positive' : 'negative'}">${s.change >= 0 ? '+' : ''}${s.change}%</div>
+        </div>
+        <div class="bg-white/5 rounded-lg p-2">
+          <div class="text-slate-500 mb-0.5">Mkt Cap</div>
+          <div class="font-semibold">${fmtMcap(s.marketCap)}</div>
+        </div>
+        <div class="bg-white/5 rounded-lg p-2">
+          <div class="text-slate-500 mb-0.5">52W Return</div>
+          <div class="font-semibold ${s.yearReturn >= 0 ? 'positive' : 'negative'}">${s.yearReturn >= 0 ? '+' : ''}${s.yearReturn}%</div>
+        </div>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-xs ${ratingColor(s.analystRating)} font-semibold">${s.analystRating}</span>
+        <div class="flex items-center gap-1.5">
+          <div class="w-20 bg-white/10 rounded-full h-1.5">
+            <div class="bar-fill bg-indigo-500 h-1.5 rounded-full" style="width:${s.strengths}%"></div>
+          </div>
+          <span class="text-xs text-slate-500">${s.strengths}/100</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+let charts = {};
+function renderCharts(data) {
+  const labels = data.map(s => s.symbol);
+  const commonOptions = {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+      y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+    }
+  };
+
+  const mcapCtx = document.getElementById('mcapChart').getContext('2d');
+  if (charts.mcap) charts.mcap.destroy();
+  charts.mcap = new Chart(mcapCtx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ data: data.map(s => s.marketCap), backgroundColor: 'rgba(99,102,241,0.7)', borderRadius: 6 }]
+    },
+    options: { ...commonOptions, plugins: { ...commonOptions.plugins, tooltip: { callbacks: { label: ctx => fmtMcap(ctx.raw) } } } }
+  });
+
+  const changeCtx = document.getElementById('changeChart').getContext('2d');
+  if (charts.change) charts.change.destroy();
+  charts.change = new Chart(changeCtx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data: data.map(s => s.change),
+        backgroundColor: data.map(s => s.change >= 0 ? 'rgba(34,197,94,0.7)' : 'rgba(239,68,68,0.7)'),
+        borderRadius: 6
+      }]
+    },
+    options: { ...commonOptions, plugins: { ...commonOptions.plugins, tooltip: { callbacks: { label: ctx => ctx.raw + '%' } } } }
+  });
+
+  const retCtx = document.getElementById('returnChart').getContext('2d');
+  if (charts.ret) charts.ret.destroy();
+  charts.ret = new Chart(retCtx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data: data.map(s => s.yearReturn),
+        backgroundColor: data.map(s => s.yearReturn >= 0 ? 'rgba(251,191,36,0.7)' : 'rgba(239,68,68,0.7)'),
+        borderRadius: 6
+      }]
+    },
+    options: { ...commonOptions, plugins: { ...commonOptions.plugins, tooltip: { callbacks: { label: ctx => ctx.raw + '%' } } } }
+  });
+
+  const peCtx = document.getElementById('peChart').getContext('2d');
+  if (charts.pe) charts.pe.destroy();
+  charts.pe = new Chart(peCtx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ data: data.map(s => s.pe), backgroundColor: 'rgba(236,72,153,0.7)', borderRadius: 6 }]
+    },
+    options: { ...commonOptions, plugins: { ...commonOptions.plugins, tooltip: { callbacks: { label: ctx => ctx.raw + 'x' } } } }
+  });
+}
+
+function sortStocks(key) {
+  if (currentSort === key) sortDir *= -1;
+  else { currentSort = key; sortDir = key === 'rank' ? 1 : -1; }
+
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active-sort', 'text-indigo-400'));
+  event.target.classList.add('active-sort', 'text-indigo-400');
+
+  const sorted = [...stocks].sort((a, b) => {
+    let va = a[key], vb = b[key];
+    return (va - vb) * sortDir;
+  });
+  renderTable(sorted);
+  renderCards(sorted);
+  if (!document.getElementById('view-chart').classList.contains('hidden')) renderCharts(sorted);
+}
+
+let currentView = 'table';
+function setView(v) {
+  currentView = v;
+  ['table','cards','chart'].forEach(name => {
+    document.getElementById('view-'+name).classList.toggle('hidden', name !== v);
+  });
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    const views = ['table','cards','chart'];
+    b.classList.toggle('active', views[i] === v);
+    b.classList.toggle('text-slate-400', views[i] !== v);
+    b.classList.toggle('bg-indigo-500', views[i] === v);
+  });
+  document.getElementById('sort-controls').style.display = v === 'chart' ? 'none' : 'flex';
+  if (v === 'chart') renderCharts(stocks);
+}
+
+// Init
+computeStats();
+renderTable(stocks);
+renderCards(stocks);
+</script>
+</body>
+</html>
