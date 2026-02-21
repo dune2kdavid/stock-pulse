@@ -29,6 +29,9 @@
     .tab-btn { transition: all 0.2s; }
     .sparkline-up { color: #22c55e; }
     .sparkline-down { color: #ef4444; }
+    @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+    .marquee-track { overflow: hidden; white-space: nowrap; }
+    .marquee-text { display: inline-block; animation: marquee 12s linear infinite; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
     .fade-in { animation: fadeIn 0.5s ease forwards; }
     .card-delay-1 { animation-delay: 0.05s; opacity: 0; }
@@ -37,6 +40,11 @@
   </style>
 </head>
 <body class="min-h-screen text-white font-sans">
+
+  <!-- Moving Banner -->
+  <div class="bg-indigo-600 py-2 marquee-track">
+    <span class="marquee-text text-sm font-semibold tracking-wide text-white px-4">Hello World &nbsp;&nbsp;&nbsp; 📈 Welcome to StockPulse — Your Top 10 Stocks Dashboard &nbsp;&nbsp;&nbsp; Hello World &nbsp;&nbsp;&nbsp; 📈 Welcome to StockPulse — Your Top 10 Stocks Dashboard</span>
+  </div>
 
   <!-- Header -->
   <header class="sticky top-0 z-50 glass border-b border-white/10 px-6 py-4">
